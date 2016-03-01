@@ -1,8 +1,14 @@
 var express = require('express');
 var _ = require('lodash');
 var app = express();
-var mongo = require('mongoskin');
-var db = mongo.db('mongodb://localhost:27017/test_app', {native_parser:true});
+// var mongo = require('mongoskin');
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost:27017/test_app2')
+var db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+var site = require('./site_controller');
+
+// var db = mongoose.db(, {native_parser:true});
 
 var mustacheExpress = require('mustache-express');
 // Register '.mustache' extension with The Mustache Express
@@ -17,50 +23,42 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
   extended: true
 }));
 
-db.bind('users').bind({
-  insertUser: function(name, age, callback) {
-    this.insert({
-      name: name,
-      age: age
-    }, callback);
-  }
+var Schema = mongoose.Schema;
+
+var userSchema = new Schema({
+  name: String,
+  username: { type: String, required: true, unique: true },
+  age: Number
 });
 
-function homepage (req, res) {
-  res.render('index', {
-    name: "josh",
-    age: 21,
-    word: "word"
-  });
-}
+var User = mongoose.model('User', userSchema);
+module.exports = User;
 
 function userpost (req, res) {
-  // db.bind('users').insert({
-  //   name: req.body.name,
-  //   age: req.body.age
-  // });
-  db.users.insertUser(req.body.name, req.body.age,
-    function(err, user) {
-      console.log(user.insertedIds[0]);
-      console.log(user._id);
-      res.render('index', {
-        name: req.body.name,
-        age: req.body.age
-      })
+  var newUser = User({
+    name: req.body.name,
+    username: req.body.name,
+    age: Number(req.body.age)
+  });
+
+  newUser.save(function(err) {
+    if (err) throw err; // handle error
+    console.log(err);
+
+    console.log('user saved...')
+    res.render('index', {
+      name: req.body.name,
+      age: req.body.age
     });
-  // res.render('index', {
-  //   name: req.body.name,
-  //   age: req.body.age
-  // })
+  });
 }
 
 function userprofile (req, res) {
 
 }
 
-app.get('/', homepage);
+app.get('/', site.index);
 app.post('/users', userpost);
-app.get('/users/:id', userprofile);
 
 app.listen(3000, function () {
   console.log('Example app listening on port 3000!');
